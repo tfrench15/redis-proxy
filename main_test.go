@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -22,7 +24,7 @@ func setup() (*Proxy, *redis.Client) {
 }
 
 func TestRetrieveFromCache(t *testing.T) {
-	req, err := http.NewRequest("GET", "localhost:8080/sf", nil)
+	req, err := http.NewRequest("GET", "http://localhost:8080/sf", nil)
 	if err != nil {
 		t.Fatalf("Error making request: %v", err)
 	}
@@ -30,7 +32,21 @@ func TestRetrieveFromCache(t *testing.T) {
 	rec := httptest.NewRecorder()
 	ProxyRedis(rec, req)
 	res := rec.Result()
-	fmt.Println(res)
+	defer res.Body.Close()
+
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Errorf("Error reading response body: %v", err)
+	}
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("Unexpected response code; got %v, expected %v", res.StatusCode, http.StatusOK)
+	}
+
+	expected := "SanFrancisco"
+	if v := string(bytes.TrimSpace(b)); v != expected {
+		t.Errorf("Unexpected value; got %v, expected %v", v, expected)
+	}
 }
 
 func TestKeyNotInRedis(t *testing.T) {

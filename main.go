@@ -98,14 +98,14 @@ func ProxyRedis(w http.ResponseWriter, r *http.Request) {
 		if ok {
 			w.WriteHeader(http.StatusOK)
 			io.WriteString(w, value+"\n")
-			io.WriteString(w, "Returned from Cache")
+			// io.WriteString(w, "Returned from Cache")
 			return
 		}
 		value, ok = RetrieveFromRedis(key, rc) // check Redis second
 		if ok {
 			w.WriteHeader(http.StatusOK)
 			io.WriteString(w, value+"\n")
-			io.WriteString(w, "Returned from Redis")
+			// io.WriteString(w, "Returned from Redis")
 			return
 		}
 		http.Error(w, "Error: key not found", http.StatusNotFound) // can't find the key
