@@ -2,33 +2,18 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"github.com/mediocregopher/radix.v2/redis"
 )
 
-// req is the http.Request
-// rec is the http.ResponseRecorder
-// res is the response of rec
-
-func setup() (*Proxy, *redis.Client) {
-	// return a proxy
-	p := NewProxy("localhost:6379", "localhost:8080/", "tcp", 5*time.Second, 5)
-	rc := NewRedisClient()
-	return p, rc
-}
-
-func TestRetrieveFromCache(t *testing.T) {
+func TestRetrieveFromRedis(t *testing.T) {
 	req, err := http.NewRequest("GET", "http://localhost:8080/sf", nil)
 	if err != nil {
 		t.Fatalf("Error making request: %v", err)
 	}
-	fmt.Println(req)
 	rec := httptest.NewRecorder()
 	ProxyRedis(rec, req)
 	res := rec.Result()
@@ -43,14 +28,53 @@ func TestRetrieveFromCache(t *testing.T) {
 		t.Errorf("Unexpected response code; got %v, expected %v", res.StatusCode, http.StatusOK)
 	}
 
-	expected := "SanFrancisco"
+	expected := "SanFrancisco\nReturned from Redis"
 	if v := string(bytes.TrimSpace(b)); v != expected {
 		t.Errorf("Unexpected value; got %v, expected %v", v, expected)
 	}
 }
 
+func TestRetrieveFromCache(t *testing.T) {
+	// We test by making two requests -- the first will retrieve a key
+	// from Redis and add it to the Cache.  The second request will
+	// retrieve the key directly from the cache.
+	req1, err := http.NewRequest("GET", "http://localhost:8080/ny", nil)
+	if err != nil {
+		t.Fatalf("Error making reqeust: %v", err)
+	}
+	req2, err := http.NewRequest("GET", "http://localhost:8080/ny", nil)
+	if err != nil {
+		t.Fatalf("Error making request: %v", err)
+	}
+
+	rec1 := httptest.NewRecorder()
+	rec2 := httptest.NewRecorder()
+	ProxyRedis(rec1, req1)
+	time.Sleep(1 * time.Second)
+	ProxyRedis(rec2, req2)
+	res2 := rec2.Result()
+	defer res2.Body.Close()
+
+	b2, err := ioutil.ReadAll(res2.Body)
+	if err != nil {
+		t.Errorf("Error reading response body: %v", err)
+	}
+
+	if res2.StatusCode != http.StatusOK {
+		t.Errorf("Unexpected response code; got %v, expected %v", res2.StatusCode, http.StatusOK)
+	}
+
+	expected := "NewYorkCity\nReturned from Cache"
+	if v := string(bytes.TrimSpace(b2)); v != expected {
+		t.Errorf("Unexpected value; got %v, expected %v", v, expected)
+	}
+}
+
 func TestKeyNotInRedis(t *testing.T) {
-	req := httptest.NewRequest("GET", "localhost:8080/hello", nil) // "hello" is not a key in Redis
+	req, err := http.NewRequest("GET", "http://localhost:8080/hello", nil) // "hello" is not a key in Redis
+	if err != nil {
+		t.Fatalf("Error creating request: %v", err)
+	}
 	rec := httptest.NewRecorder()
 	ProxyRedis(rec, req)
 	if status := rec.Code; status != http.StatusNotFound {
