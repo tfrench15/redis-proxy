@@ -54,11 +54,11 @@ func NewRedisClient() *redis.Client {
 }
 
 var (
-	redisAddress = flag.String("redisAddress", "localhost:6379", "address of the backing Redis")
-	proxyAddress = flag.String("proxyAddress", "localhost:8080", "address Proxy listens on")
+	redisAddress = flag.String("ra", "localhost:6379", "address of the backing Redis")
+	proxyAddress = flag.String("pa", "localhost:8080", "address Proxy listens on")
 	network      = flag.String("network", "tcp", "communication protocol")
-	expiry       = flag.Int("cacheDuration", 10, "duration for which keys are valid in the cache")
-	capacity     = flag.Int("cacheCapacity", 5, "capacity of the cache")
+	expiry       = flag.Int("dur", 10, "duration for which keys are valid in the cache")
+	capacity     = flag.Int("cap", 5, "capacity of the cache")
 	proxy        = NewProxy(*redisAddress, *proxyAddress, *network, time.Duration(*expiry)*time.Second, *capacity)
 	rc           = NewRedisClient()
 )
