@@ -45,7 +45,7 @@ func NewProxy(rAddr, pAddr, network string, expiry time.Duration, capacity int) 
 
 // NewRedisClient returns a new Redis client for use
 func NewRedisClient() *redis.Client {
-	client, err := redis.Dial("tcp", "localhost:6379")
+	client, err := redis.Dial(proxy.Network, proxy.RedisAddr)
 	if err != nil {
 		log.Fatalf("Error: cannot connect to Redis server")
 		return nil
@@ -96,7 +96,6 @@ func RetrieveFromRedis(key string, rc *redis.Client) (string, bool) {
 
 // ProxyRedis is the core Handler for the service.
 func ProxyRedis(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r)
 	switch r.Method {
 	case "GET":
 		key := path.Base(r.URL.Path)
@@ -123,7 +122,7 @@ func ProxyRedis(w http.ResponseWriter, r *http.Request) {
 func main() {
 	flag.Parse()
 	http.HandleFunc("/", ProxyRedis)
-	err := http.ListenAndServe("localhost:8080", nil)
+	err := http.ListenAndServe(proxy.ProxyAddr, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
