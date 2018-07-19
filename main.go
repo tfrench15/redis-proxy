@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -53,8 +54,13 @@ func NewRedisClient() *redis.Client {
 }
 
 var (
-	proxy = NewProxy("localhost:6379", "localhost:8080", "tcp", 10*time.Second, 5)
-	rc    = NewRedisClient()
+	redisAddress = flag.String("redisAddress", "localhost:6379", "address of the backing Redis")
+	proxyAddress = flag.String("proxyAddress", "localhost:8080", "address Proxy listens on")
+	network      = flag.String("network", "tcp", "communication protocol")
+	expiry       = flag.Int("cacheDuration", 10, "duration for which keys are valid in the cache")
+	capacity     = flag.Int("cacheCapacity", 5, "capacity of the cache")
+	proxy        = NewProxy(*redisAddress, *proxyAddress, *network, time.Duration(*expiry)*time.Second, *capacity)
+	rc           = NewRedisClient()
 )
 
 // RetrieveFromCache checks the cache for a given key and, if
@@ -115,6 +121,7 @@ func ProxyRedis(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+
 	http.HandleFunc("/", ProxyRedis)
 	err := http.ListenAndServe("localhost:8080", nil)
 	if err != nil {
