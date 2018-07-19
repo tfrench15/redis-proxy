@@ -121,7 +121,7 @@ func ProxyRedis(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-
+	flag.Parse()
 	http.HandleFunc("/", ProxyRedis)
 	err := http.ListenAndServe("localhost:8080", nil)
 	if err != nil {
