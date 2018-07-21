@@ -1,11 +1,11 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"path"
 	"time"
 
@@ -54,12 +54,12 @@ func NewRedisClient() *redis.Client {
 }
 
 var (
-	redisAddress = flag.String("ra", "localhost:6379", "address of the backing Redis")
-	proxyAddress = flag.String("pa", "localhost:8080", "address Proxy listens on")
-	network      = flag.String("network", "tcp", "communication protocol")
-	expiry       = flag.Int("dur", 10, "duration for which keys are valid in the cache")
-	capacity     = flag.Int("cap", 5, "capacity of the cache")
-	proxy        = NewProxy(*redisAddress, *proxyAddress, *network, time.Duration(*expiry)*time.Second, *capacity)
+	redisAddress = os.Getenv("REDIS_ADDRESS")
+	proxyAddress = os.Getenv("PROXY_ADDRESS")
+	network      = "tcp"
+	expiry       = os.Getenv("CACHE_DURATION")
+	capacity     = os.Getenv("CACHE_CAPACITY")
+	proxy        = NewProxy(redisAddress, proxyAddress, network, convertExpiryToDuration(expiry), convertCapacityToInt(capacity))
 	rc           = NewRedisClient()
 )
 
@@ -119,8 +119,20 @@ func ProxyRedis(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func init() {
+	if redisAddress == "" {
+		redisAddress = "localhost:6379"
+	}
+	if proxyAddress == "" {
+		proxyAddress = "localhost:8080"
+	}
+}
+
 func main() {
-	flag.Parse()
+	os.Setenv("REDIS_ADDRESS", "localhost:6379")
+	os.Setenv("PROXY_ADDRESS", "localhost:8080")
+	os.Setenv("CACHE_DURATION", "10")
+	os.Setenv("CACHE_CAPACITY", "5")
 	http.HandleFunc("/", ProxyRedis)
 	err := http.ListenAndServe(proxy.ProxyAddr, nil)
 	if err != nil {
