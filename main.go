@@ -1,17 +1,36 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"path"
 	"time"
 
 	"github.com/hashicorp/golang-lru"
 	"github.com/mediocregopher/radix.v2/redis"
 )
+
+// Command-line flags for setting up the proxy
+var (
+	redisAddr   = flag.String("redis", "localhost:6379", "address of the backing Redis")
+	proxyAddr   = flag.String("proxy", "localhost:8080", "port on which the proxy listens")
+	expiry      = flag.Int("expiry", 10, "time duration of a key in the cache")
+	capacity    = flag.Int("capacity", 5, "size of the cache")
+	redisClient = NewRedisClient()
+)
+
+func main() {
+	flag.Parse()
+	p := NewProxy(*redisAddr, *proxyAddr, "tcp", time.Duration(*expiry), *capacity)
+	http.Handle("/", p)
+	err := http.ListenAndServe(p.ProxyAddr, p)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
 // Proxy defines the specification for a new read-through cache
 type Proxy struct {
@@ -45,7 +64,7 @@ func NewProxy(rAddr, pAddr, network string, expiry time.Duration, capacity int) 
 
 // NewRedisClient returns a new Redis client for use
 func NewRedisClient() *redis.Client {
-	client, err := redis.Dial(proxy.Network, proxy.RedisAddr)
+	client, err := redis.Dial("tcp", *redisAddr)
 	if err != nil {
 		log.Fatalf("Error: cannot connect to Redis server")
 		return nil
@@ -53,35 +72,25 @@ func NewRedisClient() *redis.Client {
 	return client
 }
 
-var (
-	redisAddress = os.Getenv("REDIS_ADDRESS")
-	proxyAddress = os.Getenv("PROXY_ADDRESS")
-	network      = "tcp"
-	expiry       = os.Getenv("CACHE_DURATION")
-	capacity     = os.Getenv("CACHE_CAPACITY")
-	proxy        = NewProxy(redisAddress, proxyAddress, network, convertExpiryToDuration(expiry), convertCapacityToInt(capacity))
-	rc           = NewRedisClient()
-)
-
 // RetrieveFromCache checks the cache for a given key and, if
 // it is present in the cache, returns the value and a bool.
-func RetrieveFromCache(key string) (string, bool) {
-	value, ok := proxy.Cache.Get(key)
+func (p *Proxy) RetrieveFromCache(key string) (string, bool) {
+	value, ok := p.Cache.Get(key)
 	if !ok {
 		return "", false
 	}
 	ci := value.(CachedItem)
 	ciVal := ci.value
-	if time.Now().Sub(ci.createdAt) < proxy.Expiry {
+	if time.Now().Sub(ci.createdAt) < p.Expiry {
 		return ciVal, true
 	}
 	return "", false
 }
 
 // RetrieveFromRedis checks Redis for a given key and, if it is
-// present in Redis, adds the resultant key:value pair to the cache.
-func RetrieveFromRedis(key string, rc *redis.Client) (string, bool) {
-	value, err := rc.Cmd("GET", key).Str()
+// present in Redis, adds the resultant key:value pair to the cache
+func (p *Proxy) RetrieveFromRedis(key string) (string, bool) {
+	value, err := redisClient.Cmd("GET", key).Str()
 	if err != nil {
 		fmt.Println(err)
 		return "", false
@@ -90,23 +99,26 @@ func RetrieveFromRedis(key string, rc *redis.Client) (string, bool) {
 		fmt.Println("Error: key not found")
 		return "", false
 	}
-	proxy.Cache.Add(key, CachedItem{value: value, createdAt: time.Now()})
+	p.Cache.Add(key, CachedItem{value: value, createdAt: time.Now()})
 	return value, true
 }
 
-// ProxyRedis is the core Handler for the service.
-func ProxyRedis(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP implements the Handler interface and provides the core
+// caching service
+func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		key := path.Base(r.URL.Path)
-		value, ok := RetrieveFromCache(key) // check Cache first
+		value, ok := p.RetrieveFromCache(key) // check Cache first
+		fmt.Println(value, ok)
 		if ok {
 			w.WriteHeader(http.StatusOK)
 			io.WriteString(w, value+"\n")
 			io.WriteString(w, "Returned from Cache")
 			return
 		}
-		value, ok = RetrieveFromRedis(key, rc) // check Redis second
+		value, ok = p.RetrieveFromRedis(key) // check Redis second
+		fmt.Println(value, ok)
 		if ok {
 			w.WriteHeader(http.StatusOK)
 			io.WriteString(w, value+"\n")
@@ -116,26 +128,5 @@ func ProxyRedis(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error: key not found", http.StatusNotFound) // can't find the key
 	default:
 		http.Error(w, "Please issue a GET request", http.StatusBadRequest)
-	}
-}
-
-func init() {
-	if redisAddress == "" {
-		redisAddress = "localhost:6379"
-	}
-	if proxyAddress == "" {
-		proxyAddress = "localhost:8080"
-	}
-}
-
-func main() {
-	os.Setenv("REDIS_ADDRESS", "localhost:6379")
-	os.Setenv("PROXY_ADDRESS", "localhost:8080")
-	os.Setenv("CACHE_DURATION", "10")
-	os.Setenv("CACHE_CAPACITY", "5")
-	http.HandleFunc("/", ProxyRedis)
-	err := http.ListenAndServe(proxy.ProxyAddr, nil)
-	if err != nil {
-		log.Fatal(err)
 	}
 }

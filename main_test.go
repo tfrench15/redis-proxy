@@ -10,12 +10,13 @@ import (
 )
 
 func TestRetrieveFromRedis(t *testing.T) {
+	p := NewProxy("localhost:6379", "localhost:8080", "tcp", 10*time.Second, 5)
 	req, err := http.NewRequest("GET", "http://localhost:8080/sf", nil)
 	if err != nil {
 		t.Fatalf("Error making request: %v", err)
 	}
 	rec := httptest.NewRecorder()
-	ProxyRedis(rec, req)
+	p.ServeHTTP(rec, req)
 	res := rec.Result()
 	defer res.Body.Close()
 
@@ -38,6 +39,7 @@ func TestRetrieveFromCache(t *testing.T) {
 	// We test by making two requests -- the first will retrieve a key
 	// from Redis and add it to the Cache.  The second request will
 	// retrieve the key directly from the cache.
+	p := NewProxy("localhost:6379", "localhost:8080", "tcp", 10*time.Second, 5)
 	req1, err := http.NewRequest("GET", "http://localhost:8080/ny", nil)
 	if err != nil {
 		t.Fatalf("Error making reqeust: %v", err)
@@ -49,9 +51,9 @@ func TestRetrieveFromCache(t *testing.T) {
 
 	rec1 := httptest.NewRecorder()
 	rec2 := httptest.NewRecorder()
-	ProxyRedis(rec1, req1)
+	p.ServeHTTP(rec1, req1)
 	time.Sleep(1 * time.Second)
-	ProxyRedis(rec2, req2)
+	p.ServeHTTP(rec2, req2)
 	res2 := rec2.Result()
 	defer res2.Body.Close()
 
@@ -71,12 +73,13 @@ func TestRetrieveFromCache(t *testing.T) {
 }
 
 func TestKeyNotInRedis(t *testing.T) {
+	p := NewProxy("localhost:6379", "localhost:8080", "tcp", 10*time.Second, 5)
 	req, err := http.NewRequest("GET", "http://localhost:8080/hello", nil) // "hello" is not a key in Redis
 	if err != nil {
 		t.Fatalf("Error creating request: %v", err)
 	}
 	rec := httptest.NewRecorder()
-	ProxyRedis(rec, req)
+	p.ServeHTTP(rec, req)
 	if status := rec.Code; status != http.StatusNotFound {
 		t.Errorf("Expected code %v; got code %v", http.StatusNotFound, rec.Code)
 	}
