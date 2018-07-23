@@ -9,9 +9,17 @@ import (
 	"time"
 )
 
+// setup returns the same Proxy that will be used in production to test its functionality
+func setup() *Proxy {
+	p := NewProxy(*redisAddr, *proxyAddr, "tcp", time.Duration(*expiry)*time.Second, *capacity)
+	redisClient.Cmd("SET", "sf", "SanFrancisco") // set 'sf:SanFrancisco' key:value pair for testing
+	redisClient.Cmd("SET", "ny", "NewYorkCity")  // set 'ny:NewYorkCity' key:value pair for testing
+	return p
+}
+
 func TestRetrieveFromRedis(t *testing.T) {
-	p := NewProxy("localhost:6379", "localhost:8080", "tcp", 10*time.Second, 5)
-	req, err := http.NewRequest("GET", "http://localhost:8080/sf", nil)
+	p := setup()
+	req, err := http.NewRequest("GET", "http://"+p.ProxyAddr+"/sf", nil)
 	if err != nil {
 		t.Fatalf("Error making request: %v", err)
 	}
@@ -39,12 +47,12 @@ func TestRetrieveFromCache(t *testing.T) {
 	// We test by making two requests -- the first will retrieve a key
 	// from Redis and add it to the Cache.  The second request will
 	// retrieve the key directly from the cache.
-	p := NewProxy("localhost:6379", "localhost:8080", "tcp", 10*time.Second, 5)
-	req1, err := http.NewRequest("GET", "http://localhost:8080/ny", nil)
+	p := setup()
+	req1, err := http.NewRequest("GET", "http://"+p.ProxyAddr+"/ny", nil)
 	if err != nil {
 		t.Fatalf("Error making reqeust: %v", err)
 	}
-	req2, err := http.NewRequest("GET", "http://localhost:8080/ny", nil)
+	req2, err := http.NewRequest("GET", "http://"+p.ProxyAddr+"/ny", nil)
 	if err != nil {
 		t.Fatalf("Error making request: %v", err)
 	}
@@ -73,8 +81,8 @@ func TestRetrieveFromCache(t *testing.T) {
 }
 
 func TestKeyNotInRedis(t *testing.T) {
-	p := NewProxy("localhost:6379", "localhost:8080", "tcp", 10*time.Second, 5)
-	req, err := http.NewRequest("GET", "http://localhost:8080/hello", nil) // "hello" is not a key in Redis
+	p := setup()
+	req, err := http.NewRequest("GET", "http://"+p.ProxyAddr+"/hello", nil) // "hello" is not a key in Redis
 	if err != nil {
 		t.Fatalf("Error creating request: %v", err)
 	}
