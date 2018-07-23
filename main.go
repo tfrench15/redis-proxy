@@ -24,7 +24,7 @@ var (
 
 func main() {
 	flag.Parse()
-	p := NewProxy(*redisAddr, *proxyAddr, "tcp", time.Duration(*expiry), *capacity)
+	p := NewProxy(*redisAddr, *proxyAddr, "tcp", time.Duration(*expiry)*time.Second, *capacity)
 	http.Handle("/", p)
 	err := http.ListenAndServe(p.ProxyAddr, p)
 	if err != nil {
@@ -110,7 +110,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		key := path.Base(r.URL.Path)
 		value, ok := p.RetrieveFromCache(key) // check Cache first
-		fmt.Println(value, ok)
 		if ok {
 			w.WriteHeader(http.StatusOK)
 			io.WriteString(w, value+"\n")
@@ -118,7 +117,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		value, ok = p.RetrieveFromRedis(key) // check Redis second
-		fmt.Println(value, ok)
 		if ok {
 			w.WriteHeader(http.StatusOK)
 			io.WriteString(w, value+"\n")
