@@ -16,7 +16,7 @@ import (
 // Command-line flags for setting up the proxy
 var (
 	redisAddr   = flag.String("redis", "localhost:6379", "address of the backing Redis")
-	proxyAddr   = flag.String("proxy", "localhost:8080", "port on which the proxy listens")
+	proxyAddr   = flag.String("proxy", "localhost:8080", "address of the Proxy")
 	expiry      = flag.Int("expiry", 10, "time duration of a key in the cache")
 	capacity    = flag.Int("capacity", 5, "size of the cache")
 	redisClient = NewRedisClient()
