@@ -12,16 +12,16 @@ For example, a GET request issued to "http://localhost:8000/hi" parses 'hi' as t
 
 #### Configuration
 The proxy is configurable via command-line flags.  You may customize:
-1. redisAddr: The address of the backing Redis
-2. proxyAddr: The port the proxy will listen on
-3. capacity: The size of the cache
-4. expiry: The duration of time a key will be cached
+1. `redisAddr`: The address of the backing Redis
+2. `proxyAddr`: The port the proxy will listen on
+3. `capacity`: The size of the cache
+4. `expiry`: The duration of time a key will be cached
 
 #### How the Code works
 
 The proxy maps HTTP GETs to Redis GETs, as detailed above.  First, it checks the cache via the `RetrieveFromCache()` method, which returns a value and `true` if the key is cached; an empty string and `false` otherwise.
 
-`CachedItem`s are a struct containing the key's value and the time it was cached as the struct's fields.  `RetrieveFromCache` checks the `createdAt` field to determine whether the key is still valid, or whether it has expired.
+`CachedItem`'s are structs containing the key's value and the time it was cached as the struct's fields.  `RetrieveFromCache` checks the `createdAt` field to determine whether the key is still valid, or whether it has expired.
 
 If the key is cached, the value and its source (i.e. Cache or Redis) are written to the ResponseWriter.
 
@@ -37,3 +37,6 @@ The proxy comes with unit tests, leveraging Go's testing framework in `main_test
 
 The cache, imported from Hashicorp's `simplelru` cache, is a doubly-linked list. Looking up a key has linear time complexity (O(n)).  Adding a key to the cache has constant time complexity (O(1)).
 
+#### Instructions (TODO)
+
+To test the cache, enter the top-level directory and run `make test`.  Note that I'm currently learning how to publish the Proxy to Docker, so that testing and running the cache is doable with a single click.
