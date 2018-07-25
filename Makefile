@@ -14,11 +14,11 @@ GOGET=$(GOCMD) get
 all: build test dep
 
 build: 
-	GOBUILD .
+	$(GOBUILD) 
 
 test:
-	GOTEST -v 
+	$(GOTEST) -v 
 
 dep:
-	GOGET $(DEPENDENCIES)
+	$(GOGET) $(DEPENDENCIES)
 
