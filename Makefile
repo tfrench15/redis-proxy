@@ -1,8 +1,7 @@
 PACKAGE := github.com/tfrench15/redis-proxy
+DEPENDENCYONE := github.com/mediocregopher/radix.v2/redis
+DEPENDENCYTWO := github.com/hashicorp/golang-lru
 
-DEPENDENCIES := \
-	github.com/mediocregopher/radix.v2/redis
-	github.com/hashicorp/golang-lru
 
 #Go parameters
 GOCMD=go
@@ -19,5 +18,6 @@ test:
 	$(GOTEST) -v 
 
 dep:
-	$(GOGET) $(DEPENDENCIES)
+	$(GOGET) $(DEPENDENCYONE) $(DEPENDENCYTWO)
+
 
