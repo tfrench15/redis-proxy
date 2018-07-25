@@ -10,14 +10,14 @@ For example, a GET request issued to "http://localhost:8000/hi" parses 'hi' as t
 
 ### Features
 
-###### Configuration
+#### Configuration
 The proxy is configurable via command-line flags.  You may customize:
 1. redisAddr: The address of the backing Redis
 2. proxyAddr: The port the proxy will listen on
 3. capacity: The size of the cache
 4. expiry: The duration of time a key will be cached
 
-###### How the Code works
+#### How the Code works
 
 The proxy maps HTTP GETs to Redis GETs, as detailed above.  First, it checks the cache via the `RetrieveFromCache()` method, which returns a value and `true` if the key is cached; an empty string and `false` otherwise.
 
@@ -29,11 +29,11 @@ Else, if the key is not cached, the key's value is fetched directly from the bac
 
 Finally, if the key is not found in Redis, an error is returned.
 
-###### Tests
+#### Tests
 
 The proxy comes with unit tests, leveraging Go's testing framework in `main_test.go`.
 
-###### Algorithmic Complexity
+#### Algorithmic Complexity
 
 The cache, imported from Hashicorp's `simplelru` cache, is a doubly-linked list. Looking up a key has linear time complexity (O(n)).  Adding a key to the cache has constant time complexity (O(1)).
 
