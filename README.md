@@ -35,7 +35,7 @@ The proxy comes with unit tests, leveraging Go's testing framework in `main_test
 
 #### Algorithmic Complexity
 
-The cache, imported from Hashicorp's `simplelru` cache, is a doubly-linked list. Looking up a key has linear time complexity (O(n)).  Adding a key to the cache has constant time complexity (O(1)).
+The cache, imported from Hashicorp's `simplelru` cache, is a doubly-linked list. Looking up a key has linear time complexity (O(log n)).  Adding a key to the cache has constant time complexity (O(1)).
 
 #### Instructions (TODO)
 
